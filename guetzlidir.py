@@ -4,8 +4,9 @@ import sys
 import argparse
 import pathlib
 import pyguetzli
+from PIL import Image
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 def optimizejpeg(inpath, outpath, quality, minsize, verbose=False):
@@ -17,12 +18,16 @@ def optimizejpeg(inpath, outpath, quality, minsize, verbose=False):
         print("Output file exists")
         return 0
 
-    input_jpeg = open(inpath, "rb").read()
+    if verbose:
+        pass
+
+    # Open with Pillow first because Guetzli may fail to decode many JPEGs
+    im = Image.open(inpath)
     insize = os.path.getsize(inpath)
     if insize < (minsize*1024):
         print("Minimum size not met")
         return 0
-    optimized_jpeg = pyguetzli.process_jpeg_bytes(input_jpeg, quality=quality)
+    optimized_jpeg = pyguetzli.process_pil_image(im, quality=quality)
     outsize = sys.getsizeof(optimized_jpeg)
 
     sizediff = insize - outsize
