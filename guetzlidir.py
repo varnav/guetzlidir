@@ -12,7 +12,7 @@ import tinify
 from PIL import Image
 from krakenio import Client
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 
 def guetzlize_file(inpath, outpath, quality, minsize):
@@ -205,7 +205,7 @@ def main():
                 totalsavedkb = totalsaved / 1024
 
     if totalsavedkb > 0:
-        print(c, 'files processed', 'in', (time.time() - start_time), 'saving', round(totalsavedkb, 2), 'KB')
+        print(c, 'files processed', 'in', round((time.time() - start_time), 2), 'saving', round(totalsavedkb, 2), 'KB')
 
 
 if __name__ == '__main__':

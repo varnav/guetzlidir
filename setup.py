@@ -16,7 +16,7 @@ install_requires = [
     'pyguetzli>=1.0.8',
     'Pillow>=8.0.1',
     'tinify>=1.5.1',
-    'git+https://github.com/kraken-io/kraken-python'
+    'krakenio @ git+https://github.com/kraken-io/kraken-python#egg=krakenio'
 ]
 
 setuptools.setup(
