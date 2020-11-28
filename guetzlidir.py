@@ -12,7 +12,7 @@ import tinify
 from PIL import Image
 from krakenio import Client
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 
 def guetzlize_file(inpath, outpath, quality, minsize):
@@ -143,16 +143,14 @@ def main():
     parser = argparse.ArgumentParser(description='This tool will recursively optimize jpeg files')
     parser.add_argument('srcpath', metavar='srcpath', type=str, help='Source directory')
     parser.add_argument('dstpath', metavar='dstpath', type=str, help='Destination directory')
-    parser.add_argument('-v', '--verbose', help='show every file processed', action='store_true')
-    parser.add_argument('-m', '--minsize', help='minimum file size in kilobytes', type=int, default=50)
+    parser.add_argument('-m', '--minsize', help='minimum file size in kilobytes', type=int, default=100)
     parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
     group.add_argument('-t', '--tinypng', help='TinyPNG API key', type=str)
     group.add_argument('-k', '--krakenio', help='Kraken.io API key:API secret', type=str)
     args = parser.parse_args()
-    if args.verbose:
-        print("The arguments are: ", str(sys.argv))
+    # print("The arguments are: ", str(sys.argv))
     print('guetzlidir', __version__)
     if os.name == 'nt':
         # We strip nasty mess if trailing slash and quotes used
