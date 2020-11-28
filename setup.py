@@ -1,6 +1,8 @@
-import setuptools
 import os
 import shutil
+
+import setuptools
+
 import guetzlidir
 
 if not os.path.exists('guetzlidir'):
@@ -13,7 +15,8 @@ with open("README.md", "r") as fh:
 install_requires = [
     'pyguetzli>=1.0.8',
     'Pillow>=8.0.1',
-    'tinify>=1.5.1'
+    'tinify>=1.5.1',
+    'git+https://github.com/kraken-io/kraken-python'
 ]
 
 setuptools.setup(
@@ -21,7 +24,8 @@ setuptools.setup(
     version=guetzlidir.__version__,
     author="Evgeny Varnavskiy",
     author_email="varnavruz@gmail.com",
-    description="Will recursively process image files in source directory, optimizing them with Guetzli and writing to output directory.",
+    description="Will recursively process image files in source directory, optimizing them with Guetzli and writing "
+                "to output directory.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/varnav/guetzlidir",

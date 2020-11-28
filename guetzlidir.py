@@ -1,18 +1,21 @@
-import io
-import time
-import os
-import sys
 import argparse
+import io
+import os
 import pathlib
-import pyguetzli
-from PIL import Image
-import tinify
+import shutil
+import sys
+import time
+import urllib.request
 
-__version__ = '0.2.0'
+import pyguetzli
+import tinify
+from PIL import Image
+from krakenio import Client
+
+__version__ = '0.3.0'
 
 
 def guetzlize_file(inpath, outpath, quality, minsize):
-
     print('From', inpath, 'to', outpath, 'with quality', quality)
     if inpath == outpath:
         print('Input path cannot be same as output path')
@@ -46,7 +49,6 @@ def guetzlize_file(inpath, outpath, quality, minsize):
 
 
 def tinypngize_file(inpath, outpath, minsize):
-
     print('From', inpath, 'to', outpath, 'using online TinyJPG')
     if inpath == outpath:
         print('Input path cannot be same as output path')
@@ -75,6 +77,60 @@ def tinypngize_file(inpath, outpath, minsize):
     percent = round((100 - (outsize / insize * 100)), 2)
     print('Saved', sizediff, 'B', 'or', percent, '%')
 
+    if sizediff < 0:
+        print('Savings are negative, copying original file')
+        if os.path.isfile(inpath):
+            shutil.copy2(inpath, outpath)
+
+    return sizediff
+
+
+def krakenize_file(inpath, outpath, minsize, apikey, apisecret):
+    print('From', inpath, 'to', outpath, 'using online Kraken.io')
+    if inpath == outpath:
+        print('Input path cannot be same as output path')
+        exit(1)
+    if os.path.exists(outpath):
+        print("Output file exists")
+        return 0
+
+    insize = os.path.getsize(inpath)
+    if insize < (minsize * 1024):
+        print("Minimum size not met")
+        return 0
+
+    im = Image.open(inpath)
+    exif = im.info['exif']  # Save EXIF data
+
+    api = Client(apikey, apisecret)
+
+    data = {
+        'wait': True
+    }
+
+    result = api.upload(inpath, data)
+
+    if result.get('success'):
+        # urlretrieve may be deprecated someday
+        urllib.request.urlretrieve(result.get('kraked_url'), outpath)
+    else:
+        print(result.get('message'))
+
+    # Restore EXIF
+    im = Image.open(outpath)
+    im.save(outpath, 'JPEG', exif=exif)
+
+    outsize = os.path.getsize(outpath)
+    sizediff = insize - outsize
+
+    percent = round((100 - (outsize / insize * 100)), 2)
+    print('Saved', sizediff, 'B', 'or', percent, '%')
+
+    if sizediff < 0:
+        print('Savings are negative, copying original file')
+        if os.path.isfile(inpath):
+            shutil.copy2(inpath, outpath)
+
     return sizediff
 
 
@@ -85,14 +141,15 @@ def main():
     c = 0
     supported = ('.jpg', '.jpeg', '.png')
     parser = argparse.ArgumentParser(description='This tool will recursively optimize jpeg files')
-    group = parser.add_mutually_exclusive_group()
     parser.add_argument('srcpath', metavar='srcpath', type=str, help='Source directory')
     parser.add_argument('dstpath', metavar='dstpath', type=str, help='Destination directory')
-    group.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
     parser.add_argument('-v', '--verbose', help='show every file processed', action='store_true')
     parser.add_argument('-m', '--minsize', help='minimum file size in kilobytes', type=int, default=50)
-    group.add_argument('-o', '--online', help='TinyPNG API key', type=str)
     parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
+    group.add_argument('-t', '--tinypng', help='TinyPNG API key', type=str)
+    group.add_argument('-k', '--krakenio', help='Kraken.io API key:API secret', type=str)
     args = parser.parse_args()
     if args.verbose:
         print("The arguments are: ", str(sys.argv))
@@ -120,23 +177,35 @@ def main():
             filepath = subdir + os.sep + filename.lower()
             if filepath.endswith(supported):
                 outdir = subdir.replace(str(srcpath), str(dstpath))
+                if not os.path.exists(outdir):
+                    os.mkdir(outdir)
                 outpath = outdir + os.sep + filename.lower()
-                if not args.online:
+                if not args.tinypng and not args.krakenio:
                     result = guetzlize_file(filepath, outpath, args.quality, args.minsize)
                     if result > 0:
                         c += 1
                         totalsaved = totalsaved + result
-                    totalsavedkb = totalsaved / 1024
-                else:
+                elif args.tinypng:
                     tinify.key = args.online
-                    tinypngize_file(filepath, outpath, args.minsize)
+                    result = tinypngize_file(filepath, outpath, args.minsize)
+                    if result > 0:
+                        c += 1
+                        totalsaved = totalsaved + result
                     # if int(tinify.tinify.compression_count) > 0:
                     #     tinypngize_file(filepath, outpath, args.minsize)
                     # else:
                     #     print("No more TinyJPG compressions left")
                     #     exit(1)
+                elif args.krakenio:
+                    creds = args.krakenio.split(':')
+                    result = krakenize_file(filepath, outpath, args.minsize, creds[0], creds[1])
+                    if result > 0:
+                        c += 1
+                        totalsaved = totalsaved + result
+                totalsavedkb = totalsaved / 1024
+
     if totalsavedkb > 0:
-        print(c, 'files processed', 'in', (time.time() - start_time), 'saving', totalsavedkb, 'KB')
+        print(c, 'files processed', 'in', (time.time() - start_time), 'saving', round(totalsavedkb, 2), 'KB')
 
 
 if __name__ == '__main__':
