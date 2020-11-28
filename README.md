@@ -2,6 +2,7 @@
 
 Will recursively process image files in source directory, optimizing them with Guetzli and writing to output directory.
 Processing is slow, memory and CPU intensive.
+EXIF data will be preserved
 
 ## Guetzli
 

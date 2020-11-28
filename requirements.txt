@@ -1,2 +1,5 @@
 pyguetzli>=1.0.8
 Pillow>=8.0.1
+tinify>=1.5.1
+setuptools~=50.3.2
+pyexiv2~=2.3.1

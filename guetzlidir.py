@@ -1,3 +1,4 @@
+import io
 import time
 import os
 import sys
@@ -5,11 +6,13 @@ import argparse
 import pathlib
 import pyguetzli
 from PIL import Image
+import tinify
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 
-def optimizejpeg(inpath, outpath, quality, minsize, verbose=False):
+def guetzlize_file(inpath, outpath, quality, minsize):
+
     print('From', inpath, 'to', outpath, 'with quality', quality)
     if inpath == outpath:
         print('Input path cannot be same as output path')
@@ -18,13 +21,13 @@ def optimizejpeg(inpath, outpath, quality, minsize, verbose=False):
         print("Output file exists")
         return 0
 
-    if verbose:
-        pass
+    # We use Pillow to wrap all this because Guetzli may fail to import many JPEG files,
+    # and also to preserve EXIF information
 
-    # Open with Pillow first because Guetzli may fail to decode many JPEGs
     im = Image.open(inpath)
+    exif = im.info['exif']  # Save EXIF data
     insize = os.path.getsize(inpath)
-    if insize < (minsize*1024):
+    if insize < (minsize * 1024):
         print("Minimum size not met")
         return 0
     optimized_jpeg = pyguetzli.process_pil_image(im, quality=quality)
@@ -32,12 +35,45 @@ def optimizejpeg(inpath, outpath, quality, minsize, verbose=False):
 
     sizediff = insize - outsize
     if sizediff > 0:
-        output = open(outpath, "wb")
-        output.write(optimized_jpeg)
-        percent = round((100-(outsize / insize * 100)), 2)
+        im = Image.open(io.BytesIO(optimized_jpeg))
+        im.save(outpath, 'JPEG', exif=exif)
+        percent = round((100 - (outsize / insize * 100)), 2)
         print('Saved', sizediff, 'B', 'or', percent, '%')
     else:
         print("Saved nothing, file skipped")
+
+    return sizediff
+
+
+def tinypngize_file(inpath, outpath, minsize):
+
+    print('From', inpath, 'to', outpath, 'using online TinyJPG')
+    if inpath == outpath:
+        print('Input path cannot be same as output path')
+        exit(1)
+    if os.path.exists(outpath):
+        print("Output file exists")
+        return 0
+
+    insize = os.path.getsize(inpath)
+    if insize < (minsize * 1024):
+        print("Minimum size not met")
+        return 0
+
+    im = Image.open(inpath)
+    exif = im.info['exif']  # Save EXIF data
+
+    source = tinify.tinify.from_file(inpath)
+    source.to_file(outpath)
+
+    im = Image.open(outpath)
+    im.save(outpath, 'JPEG', exif=exif)
+
+    outsize = os.path.getsize(outpath)
+    sizediff = insize - outsize
+
+    percent = round((100 - (outsize / insize * 100)), 2)
+    print('Saved', sizediff, 'B', 'or', percent, '%')
 
     return sizediff
 
@@ -49,11 +85,13 @@ def main():
     c = 0
     supported = ('.jpg', '.jpeg', '.png')
     parser = argparse.ArgumentParser(description='This tool will recursively optimize jpeg files')
+    group = parser.add_mutually_exclusive_group()
     parser.add_argument('srcpath', metavar='srcpath', type=str, help='Source directory')
     parser.add_argument('dstpath', metavar='dstpath', type=str, help='Destination directory')
-    parser.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
+    group.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
     parser.add_argument('-v', '--verbose', help='show every file processed', action='store_true')
     parser.add_argument('-m', '--minsize', help='minimum file size in kilobytes', type=int, default=50)
+    group.add_argument('-o', '--online', help='TinyPNG API key', type=str)
     parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
     args = parser.parse_args()
     if args.verbose:
@@ -83,11 +121,20 @@ def main():
             if filepath.endswith(supported):
                 outdir = subdir.replace(str(srcpath), str(dstpath))
                 outpath = outdir + os.sep + filename.lower()
-                result = optimizejpeg(filepath, outpath, args.quality, args.minsize, args.verbose)
-                if result > 0:
-                    c += 1
-                    totalsaved = totalsaved + result
-                totalsavedkb = totalsaved/1024
+                if not args.online:
+                    result = guetzlize_file(filepath, outpath, args.quality, args.minsize)
+                    if result > 0:
+                        c += 1
+                        totalsaved = totalsaved + result
+                    totalsavedkb = totalsaved / 1024
+                else:
+                    tinify.key = args.online
+                    tinypngize_file(filepath, outpath, args.minsize)
+                    # if int(tinify.tinify.compression_count) > 0:
+                    #     tinypngize_file(filepath, outpath, args.minsize)
+                    # else:
+                    #     print("No more TinyJPG compressions left")
+                    #     exit(1)
     if totalsavedkb > 0:
         print(c, 'files processed', 'in', (time.time() - start_time), 'saving', totalsavedkb, 'KB')
 
