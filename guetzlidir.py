@@ -5,14 +5,12 @@ import pathlib
 import shutil
 import sys
 import time
-import urllib.request
 
 import pyguetzli
 import tinify
 from PIL import Image
-from krakenio import Client
 
-__version__ = '0.3.2'
+__version__ = '0.4.0'
 
 
 def guetzlize_file(inpath, outpath, quality, minsize):
@@ -85,55 +83,6 @@ def tinypngize_file(inpath, outpath, minsize):
     return sizediff
 
 
-def krakenize_file(inpath, outpath, minsize, apikey, apisecret):
-    print('From', inpath, 'to', outpath, 'using online Kraken.io')
-    if inpath == outpath:
-        print('Input path cannot be same as output path')
-        exit(1)
-    if os.path.exists(outpath):
-        print("Output file exists")
-        return 0
-
-    insize = os.path.getsize(inpath)
-    if insize < (minsize * 1024):
-        print("Minimum size not met")
-        return 0
-
-    im = Image.open(inpath)
-    exif = im.info['exif']  # Save EXIF data
-
-    api = Client(apikey, apisecret)
-
-    data = {
-        'wait': True
-    }
-
-    result = api.upload(inpath, data)
-
-    if result.get('success'):
-        # urlretrieve may be deprecated someday
-        urllib.request.urlretrieve(result.get('kraked_url'), outpath)
-    else:
-        print(result.get('message'))
-
-    # Restore EXIF
-    im = Image.open(outpath)
-    im.save(outpath, 'JPEG', exif=exif)
-
-    outsize = os.path.getsize(outpath)
-    sizediff = insize - outsize
-
-    percent = round((100 - (outsize / insize * 100)), 2)
-    print('Saved', sizediff, 'B', 'or', percent, '%')
-
-    if sizediff < 0:
-        print('Savings are negative, copying original file')
-        if os.path.isfile(inpath):
-            shutil.copy2(inpath, outpath)
-
-    return sizediff
-
-
 def main():
     start_time = time.time()
     totalsaved = 0
@@ -148,7 +97,6 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-q', '--quality', metavar='dstpath', type=int, default=90, help='JPEG quality, default 90')
     group.add_argument('-t', '--tinypng', help='TinyPNG API key', type=str)
-    group.add_argument('-k', '--krakenio', help='Kraken.io API key:API secret', type=str)
     args = parser.parse_args()
     # print("The arguments are: ", str(sys.argv))
     print('guetzlidir', __version__)
@@ -178,7 +126,7 @@ def main():
                 if not os.path.exists(outdir):
                     os.mkdir(outdir)
                 outpath = outdir + os.sep + filename.lower()
-                if not args.tinypng and not args.krakenio:
+                if not args.tinypng:
                     result = guetzlize_file(filepath, outpath, args.quality, args.minsize)
                     if result > 0:
                         c += 1
@@ -186,17 +134,6 @@ def main():
                 elif args.tinypng:
                     tinify.key = args.online
                     result = tinypngize_file(filepath, outpath, args.minsize)
-                    if result > 0:
-                        c += 1
-                        totalsaved = totalsaved + result
-                    # if int(tinify.tinify.compression_count) > 0:
-                    #     tinypngize_file(filepath, outpath, args.minsize)
-                    # else:
-                    #     print("No more TinyJPG compressions left")
-                    #     exit(1)
-                elif args.krakenio:
-                    creds = args.krakenio.split(':')
-                    result = krakenize_file(filepath, outpath, args.minsize, creds[0], creds[1])
                     if result > 0:
                         c += 1
                         totalsaved = totalsaved + result

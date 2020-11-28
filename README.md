@@ -49,11 +49,8 @@ guetzlidir --minsize 300 --tinypng api_key /home/username/myphotos /home/usernam
 
 ### Kraken.io online processing
 
-[Get API key](https://kraken.io/pricing), then:
-
-```sh
-guetzlidir --minsize 300 --krakenio api_key:api_secret /home/username/myphotos /home/username/photos_out
-```
+Support is removed because no supported version is available in PyPi.
+See [this](https://github.com/kraken-io/kraken-python/issues/5).
 
 ## See also
 
