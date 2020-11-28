@@ -10,7 +10,7 @@ import pyguetzli
 import tinify
 from PIL import Image
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 
 def guetzlize_file(inpath, outpath, quality, minsize):
@@ -26,10 +26,14 @@ def guetzlize_file(inpath, outpath, quality, minsize):
     # and also to preserve EXIF information
 
     im = Image.open(inpath)
-    exif = im.info['exif']  # Save EXIF data
+    try:
+        exif = im.info['exif']  # Save EXIF data
+    except KeyError:
+        print("Error reading exif from", inpath)
+        exif = False
     insize = os.path.getsize(inpath)
     if insize < (minsize * 1024):
-        print("Minimum size not met")
+        print(inpath, "minimum size of", minsize, "KB not met")
         return 0
     optimized_jpeg = pyguetzli.process_pil_image(im, quality=quality)
     outsize = sys.getsizeof(optimized_jpeg)
@@ -37,7 +41,10 @@ def guetzlize_file(inpath, outpath, quality, minsize):
     sizediff = insize - outsize
     if sizediff > 0:
         im = Image.open(io.BytesIO(optimized_jpeg))
-        im.save(outpath, 'JPEG', exif=exif)
+        if exif:
+            im.save(outpath, 'JPEG', optimize=True, exif=exif)
+        else:
+            im.save(outpath, 'JPEG', optimize=True)
         percent = round((100 - (outsize / insize * 100)), 2)
         print('Saved', sizediff, 'B', 'or', percent, '%')
     else:
@@ -61,13 +68,20 @@ def tinypngize_file(inpath, outpath, minsize):
         return 0
 
     im = Image.open(inpath)
-    exif = im.info['exif']  # Save EXIF data
+    try:
+        exif = im.info['exif']  # Save EXIF data
+    except KeyError:
+        print("Error reading exif from", inpath)
+        exif = False
 
     source = tinify.tinify.from_file(inpath)
     source.to_file(outpath)
 
     im = Image.open(outpath)
-    im.save(outpath, 'JPEG', exif=exif)
+    if exif:
+        im.save(outpath, 'JPEG', optimize=True, exif=exif)
+    else:
+        im.save(outpath, 'JPEG', optimize=True)
 
     outsize = os.path.getsize(outpath)
     sizediff = insize - outsize

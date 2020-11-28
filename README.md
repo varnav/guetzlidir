@@ -52,5 +52,9 @@ guetzlidir --minsize 300 --tinypng api_key /home/username/myphotos /home/usernam
 Support is removed because no supported version is available in PyPi.
 See [this](https://github.com/kraken-io/kraken-python/issues/5).
 
-## See also
+Windows release 0.3.2 still has it's support: [Download exe](https://github.com/varnav/guetzlidir/releases/download/v0.3.2/guetzlidir.exe).
+
+## Known issues
+
+Paths with spaces in windows are problematic. Looking for a solution.
 

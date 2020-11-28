@@ -1,1 +1,3 @@
+- [] Research if there is double encoding on Image.save
 - [] beforedate, afterdate
+- [] saving processed files to db
